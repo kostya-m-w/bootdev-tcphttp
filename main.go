@@ -23,12 +23,15 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 	out := make(chan string)
 
 	go func(){
+		defer f.Close()
+		defer close(out)
 		var currentLine string
 
 		for {
 			buf := make([]byte, 8)
-			_, err := f.Read(buf)
-			chunk := strings.Trim(string(buf), "\x00")
+			n, err := f.Read(buf)
+			//chunk := strings.Trim(string(buf[:n]), "\x00")
+			chunk := string(buf[:n])
 			parts := strings.Split(chunk, "\n")
 			
 			for i, part := range(parts) {
@@ -49,8 +52,6 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 			//fmt.Printf("read: \"%q\"\n", currentLine)
 		}
 
-		f.Close()
-		close(out)
 	}()
 	return out
 }
