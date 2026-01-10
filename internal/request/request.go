@@ -26,8 +26,8 @@ type Request struct{
 	state parserState
 }
 
-func newRequest() Request {
-	return Request{
+func newRequest() *Request {
+	return &Request{
 		state: StateInit,
 	}
 }
@@ -47,7 +47,7 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 			break
 		}
 		if err != nil {
-			return &req, err 
+			return nil, err 
 		}
 		bytesReadCount += n
 
@@ -65,7 +65,7 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 
 
 		if err != nil {
-			return &req, err 
+			return req, err 
 		}
 
 		if bytesParsedCount > 0 {
@@ -76,7 +76,7 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 		fmt.Println("----")
 	}
 	fmt.Println("<<<<")
-	return &req, nil
+	return req, nil
 }
 
 
@@ -90,7 +90,7 @@ func (r *Request) parse(data []byte) (int, error){
 		}
 
 		if n > 0 {
-			r.RequestLine = reqLine
+			r.RequestLine = *reqLine
 			r.state = StateDone
 		}
 		return n, nil
@@ -104,13 +104,13 @@ func (r *Request) isDone() bool{
 	return r.state == StateDone
 }
 
-func parseRequestLine(data []byte) (RequestLine, int, error) {
+func parseRequestLine(data []byte) (*RequestLine, int, error) {
 	var reqLine RequestLine
 	
 	sepIndex := bytes.Index(data, SEPARATOR)
 
 	if sepIndex == -1 {
-		return reqLine, 0, nil
+		return &reqLine, 0, nil
 	}
 
 
@@ -121,7 +121,7 @@ func parseRequestLine(data []byte) (RequestLine, int, error) {
 	parts := strings.Split(string(rawLine), " ")
 
 	if len(parts) != 3 {
-		return reqLine, bytesReadCount, fmt.Errorf("Error parsing request line")
+		return &reqLine, bytesReadCount, fmt.Errorf("Error parsing request line")
 	}
 
 	split_version := strings.Split(parts[2], "/")
@@ -130,5 +130,5 @@ func parseRequestLine(data []byte) (RequestLine, int, error) {
 	reqLine.RequestTarget = parts[1]
 	reqLine.HttpVersion = split_version[1]
 
-	return reqLine, bytesReadCount, nil
+	return &reqLine, bytesReadCount, nil
 }
