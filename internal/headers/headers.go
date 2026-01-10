@@ -26,19 +26,16 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	headerLines := bytes.Split(data[:headersEndIndex], SEPARATOR)
 	
 	for _, headerLine := range(headerLines) {
-		pair := bytes.Split(headerLine, NAME_VALUE_SEPARATOR)
-		
-		if len(pair) == 2 {
-			return 0, false, HEADER_PARSE_ERROR
-		}
-		name := pair[0]
-		val := pair[1]
-		if bytes.HasSuffix(name, []byte(WS)) {
+		sepIndex := bytes.Index(headerLine, []byte(":"))
+
+		name := headerLine[:sepIndex]
+		val := headerLine[sepIndex+1:]
+		if bytes.HasSuffix(name, []byte(WS))  {
 			return 0, false, HEADER_PARSE_ERROR
 		}
 
 		h[string(bytes.Trim(name, WS))] = string(bytes.Trim(val, WS))
 	}
 	
-	return headersEndIndex, true, nil
+	return headersEndIndex + 2, true, nil
 }
