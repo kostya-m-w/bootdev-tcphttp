@@ -20,7 +20,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	if headersSepIndex == -1 {
 		return 0, false, nil
 	}else if headersSepIndex == 0{
-		return 0, true, nil
+		return 2, true, nil
 	}
 
 	headerLine := data[:headersSepIndex]
