@@ -7,6 +7,7 @@ import(
 	"io"
 	"strings"
 	"net"
+	"tcphttp/internal/request"
 )
 
 func main(){
@@ -16,18 +17,28 @@ func main(){
 		fmt.Printf("Error start listening: %v", err)
 	}
 
-	fmt.Printf("Listening to : %v\n", 42069)
+	//fmt.Printf("Listening to : %v\n", 42069)
 	conn, err := ln.Accept()
 	if err != nil {
 		fmt.Printf("Error accepting connection: %v", err)
 	}
 
-	fmt.Printf("Connection Established\n")
+	//fmt.Printf("Connection Established\n")
 
-	readChan := getLinesChannel(conn)
-	for line := range(readChan) {
-		fmt.Printf("read: %s\n", line)
+	//readChan := getLinesChannel(conn)
+	//for line := range(readChan) {
+	//	fmt.Printf("read: %s\n", line)
+	//}
+	request, err := request.RequestFromReader(conn)
+	if err != nil {
+		fmt.Printf("Error parsing erquest: %v\n", err)
 	}
+
+
+	fmt.Println("Request line:")
+	fmt.Printf("- Method: %v\n", request.RequestLine.Method)
+	fmt.Printf("- Target: %v\n", request.RequestLine.RequestTarget)
+	fmt.Printf("- Version: %v\n", request.RequestLine.HttpVersion)
 }
 func getLinesChannel(f io.ReadCloser) <-chan string {
 	out := make(chan string)

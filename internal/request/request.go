@@ -38,11 +38,11 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 	bytesParsedCount := 0
 	readBuf := make([]byte, buffSize, buffSize)
 
-	fmt.Println(">>>>")
+	//fmt.Println(">>>>")
 	req := newRequest()
 	for !req.isDone() {
 		n, err := reader.Read(readBuf[bytesReadCount:])
-		fmt.Printf("Read: %q, n: %v\n", readBuf, n)
+		//fmt.Printf("Read: %q, n: %v\n", readBuf, n)
 		if err != nil && err == io.EOF {
 			break
 		}
@@ -52,15 +52,14 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 		bytesReadCount += n
 
 		if bytesReadCount >= len(readBuf) / 2 {
-
-			fmt.Println("extending buffer")
+		//	fmt.Println("extending buffer")
 			newSize := bytesReadCount*2
 			newBuf := make([]byte, newSize, newSize)
 			copy(newBuf, readBuf)
 			readBuf = newBuf
 		}
 
-		fmt.Printf("Parse: %q, bytesReadCount: %v\n", readBuf[:bytesReadCount], bytesReadCount)
+		//fmt.Printf("Parse: %q, bytesReadCount: %v\n", readBuf[:bytesReadCount], bytesReadCount)
 		bytesParsedCount, err = req.parse(readBuf[:bytesReadCount])
 
 
@@ -69,19 +68,18 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 		}
 
 		if bytesParsedCount > 0 {
-			fmt.Errorf("Removing parsed part")
 			copy(readBuf, readBuf[bytesParsedCount:])
 			bytesReadCount -= bytesParsedCount
 		}
-		fmt.Println("----")
+		//fmt.Println("----")
 	}
-	fmt.Println("<<<<")
+	//fmt.Println("<<<<")
 	return req, nil
 }
 
 
 func (r *Request) parse(data []byte) (int, error){
-	fmt.Printf("received to parse: %q\n", data) 
+	//fmt.Printf("received to parse: %q\n", data) 
 	switch r.state {
 	case StateInit:
 		reqLine, n, err := parseRequestLine(data)
