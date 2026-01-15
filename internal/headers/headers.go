@@ -40,7 +40,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, HEADER_PARSE_ERROR
 	}
 
-	name = bytes.Trim(name, WS)
+	name = bytes.TrimSpace(name)
 
 	if hasInvalidCharacters(name) {
 		return 0, false, INVALID_CHARACTER
@@ -52,16 +52,22 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, HEADER_NAME_TO_SHORT
 	}
 
-	h[string(name)] = string(bytes.Trim(val, WS))
+	h.Set(string(name), string(bytes.TrimSpace(val)))
 	
 	return headersSepIndex + 2, false, nil
 }
 
+func (h *Headers) Set(key, val string) {
+	if currentVal, ok := (*h)[key]; ok {
+		(*h)[key] = fmt.Sprintf("%v, %v", currentVal, val)
+	}else{
+		(*h)[key] = val
+	}
+}
 func hasInvalidCharacters(val []byte) bool{
 	for i := 0; i < len(val); i++ {
 
 		if bytes.IndexByte(UPPER_LETTERS, val[i]) < 0 && bytes.IndexByte(LOWER_LETTERS, val[i]) < 0 && bytes.IndexByte(NUMBERS, val[i]) < 0 && bytes.IndexByte(ALLOWED_CHARS, val[i]) < 0 {
-			fmt.Printf("Invalid character: %q\n", val[i])
 			return true
 		}
 	}
