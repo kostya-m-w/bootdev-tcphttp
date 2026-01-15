@@ -15,6 +15,7 @@ var ALLOWED_CHARS = []byte("!#$%&'*+-.^_`|~|")
 var HEADER_PARSE_ERROR = fmt.Errorf("Error parsing header")
 var INVALID_CHARACTER = fmt.Errorf("Error parsing header: not allower characters")
 var HEADER_NAME_TO_SHORT = fmt.Errorf("Error parsing header: Header name to short")
+
 type Headers map[string]string
 
 func NewHeaders() Headers {

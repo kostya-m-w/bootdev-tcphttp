@@ -67,4 +67,17 @@ func TestHeadersParse(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, n)
 	assert.True(t, done)
+	
+	//Valid headers present for 2 times
+	headers = NewHeaders()
+	data = []byte("Multi-header: value one\r\n")
+	_, _, _ = headers.Parse(data)
+	data = []byte("Multi-header: value two\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	require.NotNil(t, headers)
+	assert.Equal(t, "value one, value two", headers["multi-header"])
+	assert.Equal(t, 25, n)
+	assert.False(t, done)
+
 }
