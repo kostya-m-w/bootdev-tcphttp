@@ -2,10 +2,10 @@ package request
 
 import(
 	"io"
-	"fmt"
 	"strings"
 	"bytes"
 	"tcphttp/internal/headers"
+	"fmt"
 )
 
 var SEPARATOR = []byte("\r\n")
@@ -94,7 +94,7 @@ func (r *Request) parse(data []byte) (int, error){
 		if n > 0 {
 			r.RequestLine = *reqLine
 			r.state = StateParsingHeaders
-			fmt.Printf("Finisehd parsing request line: %q\n", data)
+			//fmt.Printf("Finisehd parsing request line: %q\n", data)
 		}
 		return n, nil
 	case StateParsingHeaders:
@@ -103,8 +103,6 @@ func (r *Request) parse(data []byte) (int, error){
 		if done{
 			r.state = StateDone
 		}
-		if err != nil {
-			fmt.Printf("Error parsing headers: %q", err) }
 		return n, err
 	case StateDone:
 		return 0, nil
