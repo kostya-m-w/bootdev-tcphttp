@@ -5,6 +5,7 @@ import(
 	"fmt"
 	"strings"
 	"bytes"
+	"tcphttp/internal/headers"
 )
 
 var SEPARATOR = []byte("\r\n")
@@ -12,7 +13,8 @@ var SEPARATOR = []byte("\r\n")
 type parserState int
 const (
 	StateInit parserState = 0
-	StateDone parserState = 1
+	StateParsingHeaders parserState = 1
+	StateDone parserState = 2
 )
 
 type RequestLine struct {
@@ -23,12 +25,14 @@ type RequestLine struct {
 
 type Request struct{
 	RequestLine RequestLine
+	Headers headers.Headers
 	state parserState
 }
 
 func newRequest() *Request {
 	return &Request{
 		state: StateInit,
+		Headers: headers.NewHeaders(),
 	}
 }
 
@@ -89,9 +93,19 @@ func (r *Request) parse(data []byte) (int, error){
 
 		if n > 0 {
 			r.RequestLine = *reqLine
-			r.state = StateDone
+			r.state = StateParsingHeaders
+			fmt.Printf("Finisehd parsing request line: %q\n", data)
 		}
 		return n, nil
+	case StateParsingHeaders:
+		n, done, err := r.Headers.Parse(data)
+		fmt.Printf("Parse header: %q\n", data)
+		if done{
+			r.state = StateDone
+		}
+		if err != nil {
+			fmt.Printf("Error parsing headers: %q", err) }
+		return n, err
 	case StateDone:
 		return 0, nil
 	default:
@@ -128,5 +142,5 @@ func parseRequestLine(data []byte) (*RequestLine, int, error) {
 	reqLine.RequestTarget = parts[1]
 	reqLine.HttpVersion = split_version[1]
 
-	return &reqLine, bytesReadCount, nil
+	return &reqLine, bytesReadCount + 2, nil
 }

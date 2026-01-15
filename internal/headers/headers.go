@@ -22,7 +22,7 @@ func NewHeaders() Headers {
 	return make(Headers)
 }
 
-func (h Headers) Parse(data []byte) (n int, done bool, err error) {
+func (h *Headers) Parse(data []byte) (n int, done bool, err error) {
 	headersSepIndex := bytes.Index(data, SEPARATOR)
 	if headersSepIndex == -1 {
 		return 0, false, nil
