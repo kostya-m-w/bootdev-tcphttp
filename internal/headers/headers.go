@@ -3,6 +3,8 @@ package headers
 import(
 	"bytes"
 	"fmt"
+	"strings"
+	"strconv"
 )
 var SEPARATOR = []byte("\r\n")
 var NAME_VALUE_SEPARATOR = []byte(":")
@@ -66,6 +68,28 @@ func (h *Headers) Set(key, val string) {
 	}else{
 		(*h)[key] = val
 	}
+}
+func (h *Headers) Get(key string) (string, bool) {
+	val, ok := (*h)[strings.ToLower(key)]
+	return val, ok
+}
+
+func (h *Headers) HasBody() bool{
+	_, ok := (*h)["content-length"]
+	return ok
+}
+
+func (h *Headers) ContentLength() (int){
+	contentLengthStr, ok := (*h)["content-length"]
+
+	if ok {
+		length, err :=  strconv.Atoi(contentLengthStr)
+		if err != nil {
+			return 0
+		}
+		return length
+	}
+	return 0
 }
 func hasInvalidCharacters(val []byte) bool{
 	for i := 0; i < len(val); i++ {

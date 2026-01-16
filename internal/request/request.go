@@ -6,6 +6,7 @@ import(
 	"bytes"
 	"tcphttp/internal/headers"
 	"fmt"
+	"strconv"
 )
 
 var SEPARATOR = []byte("\r\n")
@@ -14,7 +15,8 @@ type parserState int
 const (
 	StateInit parserState = 0
 	StateParsingHeaders parserState = 1
-	StateDone parserState = 2
+	StateParsingBody parserState = 2
+	StateDone parserState = 3
 )
 
 type RequestLine struct {
@@ -26,6 +28,7 @@ type RequestLine struct {
 type Request struct{
 	RequestLine RequestLine
 	Headers headers.Headers
+	Body []byte
 	state parserState
 }
 
@@ -33,6 +36,7 @@ func newRequest() *Request {
 	return &Request{
 		state: StateInit,
 		Headers: headers.NewHeaders(),
+		Body: []byte{},
 	}
 }
 
@@ -48,7 +52,11 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 		n, err := reader.Read(readBuf[bytesReadCount:])
 		//fmt.Printf("Read: %q, n: %v\n", readBuf, n)
 		if err != nil && err == io.EOF {
-			break
+			if req.state == StateParsingBody && !req.BodyDone() {
+				return nil, fmt.Errorf("Partial body")
+			}else{
+				break
+			}
 		}
 		if err != nil {
 			return nil, err 
@@ -99,11 +107,35 @@ func (r *Request) parse(data []byte) (int, error){
 		return n, nil
 	case StateParsingHeaders:
 		n, done, err := r.Headers.Parse(data)
-		fmt.Printf("Parse header: %q\n", data)
+		//fmt.Printf("Parse header: %q\n", data)
 		if done{
-			r.state = StateDone
+			r.state = StateParsingBody
 		}
 		return n, err
+	case StateParsingBody:
+		contentLengthVal, ok := r.Headers.Get("content-length")
+
+		if  !ok && len(data) == 0 {
+			return 0, nil
+		}else {
+			contentLengthVal = "0"
+		}
+
+		contentLength, err := strconv.Atoi(contentLengthVal)
+		if err != nil {
+			return 0, fmt.Errorf("Error converting content-length to int")
+		}
+
+		r.Body = append(r.Body, data...)
+
+		//fmt.Printf("body piece: %q, accumulated body: %q\n", data, r.Body)
+		currentBodyLen := len(r.Body)
+		if  contentLength > 0 && currentBodyLen > contentLength{
+			return len(data), fmt.Errorf("body to long, content-length: %v, body length: %v", contentLength, currentBodyLen)
+		} else if currentBodyLen == contentLength {
+			r.state = StateDone
+		}
+		return len(data), nil
 	case StateDone:
 		return 0, nil
 	default:
@@ -112,6 +144,14 @@ func (r *Request) parse(data []byte) (int, error){
 }
 func (r *Request) isDone() bool{
 	return r.state == StateDone
+}
+
+func (r *Request) BodyDone() bool {
+	declaredLength := r.Headers.ContentLength()
+	actualLength := len(r.Body)
+	//fmt.Printf("declared length: %v, actual length: %v\n", declaredLength, actualLength)
+
+	return actualLength >= declaredLength
 }
 
 func parseRequestLine(data []byte) (*RequestLine, int, error) {
