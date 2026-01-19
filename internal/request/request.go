@@ -46,17 +46,16 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 	bytesParsedCount := 0
 	readBuf := make([]byte, buffSize, buffSize)
 
-	//fmt.Println(">>>>")
+	fmt.Println(">>>>")
 	req := newRequest()
 	for !req.isDone() {
+		fmt.Printf("Read loop iteration start bytesReadCount: %v, readBuf: %q", bytesReadCount, readBuf)
 		n, err := reader.Read(readBuf[bytesReadCount:])
-		//fmt.Printf("Read: %q, n: %v\n", readBuf, n)
+		eof := false
+		fmt.Printf("\nRead: %q, n: %v, eof: %v\n", readBuf, n, eof)
 		if err != nil && err == io.EOF {
-			if req.state == StateParsingBody && !req.BodyDone() {
-				return nil, fmt.Errorf("Partial body")
-			}else{
-				break
-			}
+			eof = true
+			err = nil
 		}
 		if err != nil {
 			return nil, err 
@@ -71,8 +70,9 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 			readBuf = newBuf
 		}
 
-		//fmt.Printf("Parse: %q, bytesReadCount: %v\n", readBuf[:bytesReadCount], bytesReadCount)
+		fmt.Printf("Parse: %q, bytesReadCount: %v\n", readBuf[:bytesReadCount], bytesReadCount)
 		bytesParsedCount, err = req.parse(readBuf[:bytesReadCount])
+		//fmt.Printf("Parse: bytesParsedCount: %v\n", bytesParsedCount)
 
 
 		if err != nil {
@@ -83,9 +83,16 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 			copy(readBuf, readBuf[bytesParsedCount:])
 			bytesReadCount -= bytesParsedCount
 		}
-		//fmt.Println("----")
+		if eof {
+			if req.state == StateParsingBody && !req.BodyDone() {
+				return nil, fmt.Errorf("Partial body")
+			}else{
+				break
+			}
+		}
+		fmt.Println("----")
 	}
-	//fmt.Println("<<<<")
+	fmt.Println("<<<<")
 	return req, nil
 }
 
@@ -107,12 +114,17 @@ func (r *Request) parse(data []byte) (int, error){
 		return n, nil
 	case StateParsingHeaders:
 		n, done, err := r.Headers.Parse(data)
-		//fmt.Printf("Parse header: %q\n", data)
-		if done{
+		fmt.Printf("Parse header: %q, done: %v, err: %v\n", data, done, err)
+		if done {
 			r.state = StateParsingBody
+			_ , ok := r.Headers.Get("content-length")
+			if !ok {
+				r.state = StateDone
+			}
 		}
 		return n, err
 	case StateParsingBody:
+		fmt.Printf("body piece: %q, accumulated body: %q\n", data, r.Body)
 		contentLengthVal, ok := r.Headers.Get("content-length")
 
 		if  !ok && len(data) == 0 {
@@ -181,4 +193,8 @@ func parseRequestLine(data []byte) (*RequestLine, int, error) {
 	reqLine.HttpVersion = split_version[1]
 
 	return &reqLine, bytesReadCount + 2, nil
+}
+
+func (r *Request) Target() string {
+	return r.RequestLine.RequestTarget
 }

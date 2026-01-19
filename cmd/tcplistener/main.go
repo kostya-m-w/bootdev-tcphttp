@@ -31,7 +31,8 @@ func main(){
 	//}
 	request, err := request.RequestFromReader(conn)
 	if err != nil {
-		fmt.Printf("Error parsing erquest: %v\n", err)
+		fmt.Printf("Error parsing request: %v\n", err)
+		return
 	}
 
 
@@ -39,6 +40,14 @@ func main(){
 	fmt.Printf("- Method: %v\n", request.RequestLine.Method)
 	fmt.Printf("- Target: %v\n", request.RequestLine.RequestTarget)
 	fmt.Printf("- Version: %v\n", request.RequestLine.HttpVersion)
+
+	fmt.Println("Headers:")
+	for header, value := range(request.Headers) {
+		fmt.Printf("- %v: %v\n", header, value)
+	}
+	fmt.Println("Body:")
+	fmt.Printf("BODY STRING\n%v\n", string(request.Body))
+
 }
 func getLinesChannel(f io.ReadCloser) <-chan string {
 	out := make(chan string)

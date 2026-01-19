@@ -28,6 +28,7 @@ func (h *Headers) Parse(data []byte) (n int, done bool, err error) {
 	n = 0
 	for {
 		headersSepIndex := bytes.Index(data[n:], SEPARATOR)
+		fmt.Printf("headers sep index: %v, bytes left: %q\n", headersSepIndex, data[n:])
 		if headersSepIndex == -1 {
 			return n, false, nil
 		}else if headersSepIndex == 0{
