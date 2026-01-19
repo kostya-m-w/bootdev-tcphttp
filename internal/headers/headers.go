@@ -64,11 +64,15 @@ func (h *Headers) Parse(data []byte) (n int, done bool, err error) {
 }
 
 func (h *Headers) Set(key, val string) {
+	key = strings.ToLower(key)
 	if currentVal, ok := (*h)[key]; ok {
 		(*h)[key] = fmt.Sprintf("%v, %v", currentVal, val)
 	}else{
 		(*h)[key] = val
 	}
+}
+func (h *Headers) HardSet(key, val string) {
+	(*h)[strings.ToLower(key)] = val
 }
 func (h *Headers) Get(key string) (string, bool) {
 	val, ok := (*h)[strings.ToLower(key)]

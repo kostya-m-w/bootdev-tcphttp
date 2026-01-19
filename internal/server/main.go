@@ -5,9 +5,10 @@ import(
 	"sync/atomic"
 	"fmt"
 	"tcphttp/internal/response"
+//	"tcphttp/internal/headers"
 	"tcphttp/internal/request"
-	"bytes"
-	"io"
+//	"bytes"
+//	"io"
 )
 
 
@@ -21,7 +22,7 @@ type HandlerError struct {
 	Message string
 }
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request)
 
 func Serve(port int, handler Handler) (*Server, error) {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
@@ -69,53 +70,18 @@ func (s *Server) listen() {
 }
 
 func (s *Server) handle(conn net.Conn) {
+	defer conn.Close()
 	fmt.Println("Start Handling")
 	request, err := request.RequestFromReader(conn)
-	fmt.Println("RequestFromReader done")
+
 	if err != nil {
 		fmt.Printf("Request Header failde to parse parsed: %q", err)
-		errStr := fmt.Sprintf("Error parsing request: %v\n", err)
-		response.WriteStatusLine(conn, 400)
-		headers := response.GetDefaultHeaders(len(errStr))
-		response.WriteHeaders(conn, headers)
-
-		conn.Write([]byte("\r\n"))
-		conn.Write([]byte(errStr))
-		conn.Close()
-		return
+		return 
 	}
 
-	fmt.Println("Request Header parsed")
-
-	buffBack := make([]byte, 0)
-	buff := bytes.NewBuffer(buffBack)
+	fmt.Println("RequestFromReader done")
+	responseWriter := response.NewWriter(conn)
 
 	fmt.Println("going to call handler func")
-	handleErr := s.handler(buff, request)
-
-	if handleErr != nil {
-		errStr := handleErr.Message
-		response.WriteStatusLine(conn, handleErr.StatusCode)
-		headers := response.GetDefaultHeaders(len(errStr))
-		response.WriteHeaders(conn, headers)
-
-		conn.Write([]byte("\r\n"))
-		conn.Write([]byte(errStr))
-		conn.Close()
-		return
-	}
-
-
-
-	handleResp := buff.Bytes()
-	fmt.Printf("Now going to write to connection: %q", handleResp)
-	response.WriteStatusLine(conn, 200)
-	fmt.Println("Status line written")
-	headers := response.GetDefaultHeaders(len(handleResp))
-	response.WriteHeaders(conn, headers)
-	fmt.Println("headers written")
-	conn.Write([]byte("\r\n"))
-	conn.Write(handleResp)
-	fmt.Println("Now going to close connection")
-	conn.Close()
+	s.handler(&responseWriter, request)
 }
