@@ -7,9 +7,10 @@ import(
 	"os"
 	"os/signal"
 	"tcphttp/internal/request"
-	"io"
+	//"io"
 	"tcphttp/internal/response"
 	"fmt"
+	"strconv"
 )
 
 const port = 42069
@@ -28,28 +29,46 @@ func main() {
 	log.Println("Server gracefully stopped")
 }
 
-func handler(w io.Writer, r *request.Request) *server.HandlerError {
+func handler(w *response.Writer, r *request.Request) {
 /*
 If the request target (path) is /yourproblem return a 400 and the message "Your problem is not my problem\n"
 If the request target (path) is /myproblem return a 500 and the message "Woopsie, my bad\n"
 Otherwise, it should just write the string "All good, frfr\n" to the response body.
 	*/
+
+	var statusCode response.StatusCode 
+	var body string
+	headers := response.GetDefaultHeaders(0)
+
+	headers.HardSet("Content-Type", "text/html")
 	fmt.Println("Inside handler func")
 	if r.Target() == "/yourproblem" {
-		err := server.HandlerError {
-			StatusCode: response.StatusBadRequest,
-			Message: "Your problem is not my problem\n",
-		}
-		return &err
+		statusCode = response.StatusBadRequest
+		body = bodyHtml("400 Bad Request", "Bad Request", "Your request honestly kinda sucked.")
 	} else if r.Target() == "/myproblem"{
-		err := server.HandlerError {
-			StatusCode: response.StatusInternalServerError,
-			Message: "Woopsie, my bad\n",
-		}
-		return &err
+		statusCode = response.StatusInternalServerError
+		body = bodyHtml("500 Internal Server Error", "Internal Server Error", "Okay, you know what? This one is on me.")
 	} else {
-		w.Write([]byte("All good, frfr\n"))
+		statusCode = response.StatusOk
+		body = bodyHtml("200 OK", "Success!", "Your request was an absolute banger.")
 	}
 
-	return nil
+	headers.HardSet("content-length", strconv.Itoa(len(body)))
+	w.WriteStatusLine(statusCode)
+	w.WriteHeaders(headers)
+	w.WriteBody([]byte(body))
+}
+
+func bodyHtml(title, h1, message string) string{
+	return fmt.Sprintf(`
+<html>
+  <head>
+    <title>%v</title>
+  </head>
+  <body>
+    <h1>%v</h1>
+    <p>%v</p>
+  </body>
+</html>
+`, title, h1, message)
 }
