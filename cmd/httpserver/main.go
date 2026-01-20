@@ -1,12 +1,14 @@
 package main
 
 import (
+	"crypto/sha256"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"tcphttp/internal/headers"
 	"tcphttp/internal/request"
 	"tcphttp/internal/response"
 	"tcphttp/internal/server"
@@ -84,26 +86,34 @@ func handler(w *response.Writer, r *request.Request) {
 		h.Set("Transfer-Encoding", "chunked")
 
 		w.WriteStatusLine(response.StatusOk)
+		h.Set("Trailer", "X-Content-SHA256")
+		h.Set("Trailer", "X-Content-Length")
 		w.WriteHeaders(h)
-		buff := make([]byte, 1024)
+		bytesRead := 0
+		fullBody := []byte{}
 		for {
-			n, err := resp.Body.Read(buff)
-			fmt.Printf("HTTPbin read: n: %v(%X), %q\n", n, n, buff[:n])
+			chunk := make([]byte, 32)
+			n, err := resp.Body.Read(chunk)
+			bytesRead += n
+			fmt.Printf("HTTPbin read: n: %v(%X), %q\n", n, n, chunk[:n])
 			if err != nil {
-
-				fmt.Println("Error reading httpbin")
-				_, _ = w.WriteChunkedBodyDone()
 				break
 			}
 
-			_, _ = w.WriteChunkedBody(buff[:n])
-			if n < 1024 {
-				fmt.Println("End of stream")
-				_, _ = w.WriteChunkedBodyDone()
-				break
-			}
+			n, _ = w.WriteChunkedBody(chunk[:n])
+			fullBody = append(fullBody, chunk[:n]...)
 		}
 
+		fmt.Println("End of stream")
+		fmt.Printf("bytesRead: %v\n", bytesRead)
+		_, _ = w.WriteChunkedBodyDone()
+		trailers := headers.NewHeaders()
+		out := sha256.Sum256(fullBody)
+		trailers.Set("X-Content-SHA256", sha256ToStr(out[:]))
+		trailers.Set("X-Content-Length", fmt.Sprintf("%d", len(fullBody)))
+		w.WriteTrailers(trailers)
+
+		w.WrapResponse()
 	} else {
 		defHandler(w, func() (response.StatusCode, string) {
 			statusCode = response.StatusOk
@@ -111,6 +121,15 @@ func handler(w *response.Writer, r *request.Request) {
 			return statusCode, body
 		})
 	}
+
+}
+
+func sha256ToStr(hash []byte) string {
+	encoded := ""
+	for _, b := range hash {
+		encoded += fmt.Sprintf("%02x", b)
+	}
+	return encoded
 
 }
 

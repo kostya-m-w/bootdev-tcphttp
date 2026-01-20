@@ -87,13 +87,29 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 }
 func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
 	n := len(p)
-	fmt.Fprintf(w.conn, "%X\r\n%s\r\n", n, p)
-	//w.conn.Write(p)
-	//w.conn.Write([]byte("-\r\n"))
+	w.conn.Write([]byte(fmt.Sprintf("%x\r\n", n)))
+	w.conn.Write(p)
+	w.conn.Write([]byte("\r\n"))
 	return n, nil
 }
 func (w *Writer) WriteChunkedBodyDone() (int, error) {
-	fmt.Fprintf(w.conn, "%X\r\n\r\n", 0)
+	w.conn.Write([]byte("0\r\n"))
 
 	return 5, nil
+}
+
+func (w *Writer) WriteTrailers(h headers.Headers) error {
+	for k, v := range h {
+		fmt.Printf("write trailer %v: %s\n", k, v)
+		_, err := fmt.Fprintf(w.conn, "%v: %v\r\n", k, v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (w *Writer) WrapResponse() {
+	w.conn.Write([]byte("\r\n"))
 }
