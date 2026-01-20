@@ -1,9 +1,10 @@
 package main
-import(
+
+import (
+	"bufio"
+	"fmt"
 	"net"
 	"os"
-	"fmt"
-	"bufio"
 )
 
 func main() {
@@ -11,7 +12,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error on resolving address: %v\n", err)
 	}
-	
+
 	conn, err := net.DialUDP("udp", nil, udpaddr)
 	if err != nil {
 		fmt.Printf("Error on dialing UDP: %v\n", err)
@@ -25,7 +26,7 @@ func main() {
 		if err != nil {
 			fmt.Printf("Error reading STDIN: %v", err)
 		}
-		_, err = conn.Write([]byte(line)) 
+		_, err = conn.Write([]byte(line))
 		if err != nil {
 			fmt.Printf("Error sending throug UDP: %v", err)
 		}

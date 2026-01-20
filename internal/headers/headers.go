@@ -1,11 +1,12 @@
 package headers
 
-import(
+import (
 	"bytes"
 	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 )
+
 var SEPARATOR = []byte("\r\n")
 var NAME_VALUE_SEPARATOR = []byte(":")
 var WS = " "
@@ -31,17 +32,17 @@ func (h *Headers) Parse(data []byte) (n int, done bool, err error) {
 		fmt.Printf("headers sep index: %v, bytes left: %q\n", headersSepIndex, data[n:])
 		if headersSepIndex == -1 {
 			return n, false, nil
-		}else if headersSepIndex == 0{
+		} else if headersSepIndex == 0 {
 			return n + 2, true, nil
 		}
-		headerLine := data[n:headersSepIndex + n]
+		headerLine := data[n : headersSepIndex+n]
 
 		sepIndex := bytes.Index(headerLine, NAME_VALUE_SEPARATOR)
 
 		name := headerLine[:sepIndex]
 		val := headerLine[sepIndex+1:]
 
-		if bytes.HasSuffix(name, []byte(WS))  {
+		if bytes.HasSuffix(name, []byte(WS)) {
 			return 0, false, HEADER_PARSE_ERROR
 		}
 		name = bytes.TrimSpace(name)
@@ -49,9 +50,9 @@ func (h *Headers) Parse(data []byte) (n int, done bool, err error) {
 		if hasInvalidCharacters(name) {
 			return 0, false, INVALID_CHARACTER
 		}
-		
+
 		name = bytes.ToLower(name)
-		
+
 		if len(name) < 1 {
 			return 0, false, HEADER_NAME_TO_SHORT
 		}
@@ -67,7 +68,7 @@ func (h *Headers) Set(key, val string) {
 	key = strings.ToLower(key)
 	if currentVal, ok := (*h)[key]; ok {
 		(*h)[key] = fmt.Sprintf("%v, %v", currentVal, val)
-	}else{
+	} else {
 		(*h)[key] = val
 	}
 }
@@ -79,16 +80,20 @@ func (h *Headers) Get(key string) (string, bool) {
 	return val, ok
 }
 
-func (h *Headers) HasBody() bool{
+func (h *Headers) Remove(key string) {
+	delete(*h, strings.ToLower(key))
+}
+
+func (h *Headers) HasBody() bool {
 	_, ok := (*h)["content-length"]
 	return ok
 }
 
-func (h *Headers) ContentLength() (int){
+func (h *Headers) ContentLength() int {
 	contentLengthStr, ok := (*h)["content-length"]
 
 	if ok {
-		length, err :=  strconv.Atoi(contentLengthStr)
+		length, err := strconv.Atoi(contentLengthStr)
 		if err != nil {
 			return 0
 		}
@@ -96,7 +101,7 @@ func (h *Headers) ContentLength() (int){
 	}
 	return 0
 }
-func hasInvalidCharacters(val []byte) bool{
+func hasInvalidCharacters(val []byte) bool {
 	for i := 0; i < len(val); i++ {
 
 		if bytes.IndexByte(UPPER_LETTERS, val[i]) < 0 && bytes.IndexByte(LOWER_LETTERS, val[i]) < 0 && bytes.IndexByte(NUMBERS, val[i]) < 0 && bytes.IndexByte(ALLOWED_CHARS, val[i]) < 0 {

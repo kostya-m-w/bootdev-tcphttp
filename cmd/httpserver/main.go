@@ -1,14 +1,17 @@
 package main
 
-import(
-	"tcphttp/internal/server"
+import (
 	"log"
-	"syscall"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
+	"syscall"
 	"tcphttp/internal/request"
-	//"io"
 	"tcphttp/internal/response"
+	"tcphttp/internal/server"
+
+	//"io"
 	"fmt"
 	"strconv"
 )
@@ -29,37 +32,89 @@ func main() {
 	log.Println("Server gracefully stopped")
 }
 
-func handler(w *response.Writer, r *request.Request) {
-/*
-If the request target (path) is /yourproblem return a 400 and the message "Your problem is not my problem\n"
-If the request target (path) is /myproblem return a 500 and the message "Woopsie, my bad\n"
-Otherwise, it should just write the string "All good, frfr\n" to the response body.
-	*/
+type injectedHandler func() (response.StatusCode, string)
 
-	var statusCode response.StatusCode 
-	var body string
+func defHandler(w *response.Writer, injected injectedHandler) {
 	headers := response.GetDefaultHeaders(0)
-
-	headers.HardSet("Content-Type", "text/html")
-	fmt.Println("Inside handler func")
-	if r.Target() == "/yourproblem" {
-		statusCode = response.StatusBadRequest
-		body = bodyHtml("400 Bad Request", "Bad Request", "Your request honestly kinda sucked.")
-	} else if r.Target() == "/myproblem"{
-		statusCode = response.StatusInternalServerError
-		body = bodyHtml("500 Internal Server Error", "Internal Server Error", "Okay, you know what? This one is on me.")
-	} else {
-		statusCode = response.StatusOk
-		body = bodyHtml("200 OK", "Success!", "Your request was an absolute banger.")
-	}
-
+	statusCode, body := injected()
 	headers.HardSet("content-length", strconv.Itoa(len(body)))
 	w.WriteStatusLine(statusCode)
 	w.WriteHeaders(headers)
 	w.WriteBody([]byte(body))
 }
 
-func bodyHtml(title, h1, message string) string{
+func handler(w *response.Writer, r *request.Request) {
+	var statusCode response.StatusCode
+	var body string
+	h := response.GetDefaultHeaders(0)
+
+	h.HardSet("Content-Type", "text/html")
+	fmt.Println("Inside handler func")
+	target := r.Target()
+	if target == "/yourproblem" {
+		defHandler(w, func() (response.StatusCode, string) {
+			statusCode = response.StatusBadRequest
+			body = bodyHtml("400 Bad Request", "Bad Request", "Your request honestly kinda sucked.")
+			return statusCode, body
+		})
+	} else if target == "/myproblem" {
+		defHandler(w, func() (response.StatusCode, string) {
+			statusCode = response.StatusInternalServerError
+			body = bodyHtml("500 Internal Server Error", "Internal Server Error", "Okay, you know what? This one is on me.")
+			return statusCode, body
+		})
+	} else if strings.HasPrefix(target, "/httpbin") {
+		subTarget := strings.TrimPrefix(target, "/httpbin")
+		proxyTarget := fmt.Sprintf("https://httpbin.org%v", subTarget)
+		resp, err := http.Get(proxyTarget)
+		if err != nil {
+			w.WriteStatusLine(response.StatusInternalServerError)
+			w.WriteHeaders(h)
+
+			defHandler(w, func() (response.StatusCode, string) {
+				return response.StatusInternalServerError, bodyHtml("500 Internal Server Error", "Internal Server Error", fmt.Sprintf("%v", err))
+			})
+			return
+		}
+		fmt.Println("HTTPbin response headers")
+		for k, v := range resp.Header {
+			fmt.Printf("%v: %q\n", k, v)
+		}
+		h.Remove("content-length")
+		h.Set("Transfer-Encoding", "chunked")
+
+		w.WriteStatusLine(response.StatusOk)
+		w.WriteHeaders(h)
+		buff := make([]byte, 1024)
+		for {
+			n, err := resp.Body.Read(buff)
+			fmt.Printf("HTTPbin read: n: %v(%X), %q\n", n, n, buff[:n])
+			if err != nil {
+
+				fmt.Println("Error reading httpbin")
+				_, _ = w.WriteChunkedBodyDone()
+				break
+			}
+
+			_, _ = w.WriteChunkedBody(buff[:n])
+			if n < 1024 {
+				fmt.Println("End of stream")
+				_, _ = w.WriteChunkedBodyDone()
+				break
+			}
+		}
+
+	} else {
+		defHandler(w, func() (response.StatusCode, string) {
+			statusCode = response.StatusOk
+			body = bodyHtml("200 OK", "Success!", "Your request was an absolute banger.")
+			return statusCode, body
+		})
+	}
+
+}
+
+func bodyHtml(title, h1, message string) string {
 	return fmt.Sprintf(`
 <html>
   <head>
