@@ -59,6 +59,19 @@ func handler(w *response.Writer, r *request.Request) {
 			body = bodyHtml("400 Bad Request", "Bad Request", "Your request honestly kinda sucked.")
 			return statusCode, body
 		})
+	} else if target == "/video" {
+		h := response.GetDefaultHeaders(0)
+		h.HardSet("Content-Type", "video/mp4")
+		w.WriteStatusLine(response.StatusOk)
+		video, err := os.ReadFile("./assets/vim.mp4")
+		if err != nil {
+			fmt.Printf("Error loading video: %v", err)
+			return
+		}
+		h.HardSet("content-length", strconv.Itoa(len(video)))
+		w.WriteHeaders(h)
+		fmt.Printf("File size: %v", len(video))
+		w.WriteBody(video)
 	} else if target == "/myproblem" {
 		defHandler(w, func() (response.StatusCode, string) {
 			statusCode = response.StatusInternalServerError
