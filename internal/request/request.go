@@ -1,47 +1,53 @@
 package request
 
-import(
-	"io"
-	"strings"
+import (
 	"bytes"
-	"tcphttp/internal/headers"
 	"fmt"
+	"io"
 	"strconv"
+	"strings"
+	"tcphttp/internal/headers"
 )
 
 var SEPARATOR = []byte("\r\n")
 
 type parserState int
+
 const (
-	StateInit parserState = 0
+	StateInit           parserState = 0
 	StateParsingHeaders parserState = 1
-	StateParsingBody parserState = 2
-	StateDone parserState = 3
+	StateParsingBody    parserState = 2
+	StateDone           parserState = 3
 )
 
 type RequestLine struct {
-	Method string
+	Method        string
 	RequestTarget string
-	HttpVersion string
+	HttpVersion   string
+	Query         Query
 }
 
-type Request struct{
+type Request struct {
 	RequestLine RequestLine
-	Headers headers.Headers
-	Body []byte
-	state parserState
+	Headers     headers.Headers
+	Body        []byte
+	state       parserState
 }
+
+type Query map[string]string
 
 func newRequest() *Request {
 	return &Request{
-		state: StateInit,
+		state:   StateInit,
 		Headers: headers.NewHeaders(),
-		Body: []byte{},
+		Body:    []byte{},
+		Query:   Query{},
 	}
 }
 
 const buffSize = 8
-func RequestFromReader(reader io.Reader) (*Request, error){
+
+func RequestFromReader(reader io.Reader) (*Request, error) {
 	bytesReadCount := 0
 	bytesParsedCount := 0
 	readBuf := make([]byte, buffSize, buffSize)
@@ -58,13 +64,13 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 			err = nil
 		}
 		if err != nil {
-			return nil, err 
+			return nil, err
 		}
 		bytesReadCount += n
 
-		if bytesReadCount >= len(readBuf) / 2 {
-		//	fmt.Println("extending buffer")
-			newSize := bytesReadCount*2
+		if bytesReadCount >= len(readBuf)/2 {
+			//	fmt.Println("extending buffer")
+			newSize := bytesReadCount * 2
 			newBuf := make([]byte, newSize, newSize)
 			copy(newBuf, readBuf)
 			readBuf = newBuf
@@ -74,9 +80,8 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 		bytesParsedCount, err = req.parse(readBuf[:bytesReadCount])
 		//fmt.Printf("Parse: bytesParsedCount: %v\n", bytesParsedCount)
 
-
 		if err != nil {
-			return req, err 
+			return req, err
 		}
 
 		if bytesParsedCount > 0 {
@@ -86,7 +91,7 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 		if eof {
 			if req.state == StateParsingBody && !req.BodyDone() {
 				return nil, fmt.Errorf("Partial body")
-			}else{
+			} else {
 				break
 			}
 		}
@@ -96,9 +101,8 @@ func RequestFromReader(reader io.Reader) (*Request, error){
 	return req, nil
 }
 
-
-func (r *Request) parse(data []byte) (int, error){
-	//fmt.Printf("received to parse: %q\n", data) 
+func (r *Request) parse(data []byte) (int, error) {
+	//fmt.Printf("received to parse: %q\n", data)
 	switch r.state {
 	case StateInit:
 		reqLine, n, err := parseRequestLine(data)
@@ -117,7 +121,7 @@ func (r *Request) parse(data []byte) (int, error){
 		fmt.Printf("Parse header: %q, done: %v, err: %v\n", data, done, err)
 		if done {
 			r.state = StateParsingBody
-			_ , ok := r.Headers.Get("content-length")
+			_, ok := r.Headers.Get("content-length")
 			if !ok {
 				r.state = StateDone
 			}
@@ -127,9 +131,9 @@ func (r *Request) parse(data []byte) (int, error){
 		fmt.Printf("body piece: %q, accumulated body: %q\n", data, r.Body)
 		contentLengthVal, ok := r.Headers.Get("content-length")
 
-		if  !ok && len(data) == 0 {
+		if !ok && len(data) == 0 {
 			return 0, nil
-		}else {
+		} else {
 			contentLengthVal = "0"
 		}
 
@@ -142,7 +146,7 @@ func (r *Request) parse(data []byte) (int, error){
 
 		//fmt.Printf("body piece: %q, accumulated body: %q\n", data, r.Body)
 		currentBodyLen := len(r.Body)
-		if  contentLength > 0 && currentBodyLen > contentLength{
+		if contentLength > 0 && currentBodyLen > contentLength {
 			return len(data), fmt.Errorf("body to long, content-length: %v, body length: %v", contentLength, currentBodyLen)
 		} else if currentBodyLen == contentLength {
 			r.state = StateDone
@@ -154,7 +158,7 @@ func (r *Request) parse(data []byte) (int, error){
 		return 0, nil
 	}
 }
-func (r *Request) isDone() bool{
+func (r *Request) isDone() bool {
 	return r.state == StateDone
 }
 
@@ -168,13 +172,12 @@ func (r *Request) BodyDone() bool {
 
 func parseRequestLine(data []byte) (*RequestLine, int, error) {
 	var reqLine RequestLine
-	
+
 	sepIndex := bytes.Index(data, SEPARATOR)
 
 	if sepIndex == -1 {
 		return &reqLine, 0, nil
 	}
-
 
 	rawLine := data[:sepIndex]
 	//leftOver := data[sepindex + len(SEPARATOR):]
@@ -197,4 +200,8 @@ func parseRequestLine(data []byte) (*RequestLine, int, error) {
 
 func (r *Request) Target() string {
 	return r.RequestLine.RequestTarget
+}
+
+func (r *Request) QueryParam(key string) (string, bool) {
+	return "", true
 }

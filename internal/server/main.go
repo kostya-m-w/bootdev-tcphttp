@@ -1,25 +1,34 @@
 package server
 
-import(
+import (
+	"fmt"
+	"io"
 	"net"
 	"sync/atomic"
-	"fmt"
 	"tcphttp/internal/response"
-//	"tcphttp/internal/headers"
-	"tcphttp/internal/request"
-//	"bytes"
-//	"io"
-)
 
+	//	"tcphttp/internal/headers"
+	"tcphttp/internal/request"
+	// "bytes"
+	// "io"
+)
 
 type Server struct {
 	listener net.Listener
-	open *atomic.Bool
-	handler Handler
+	open     *atomic.Bool
+	handler  Handler
+	ssePipes SsePipeStorage
 }
 type HandlerError struct {
 	StatusCode response.StatusCode
-	Message string
+	Message    string
+}
+
+type SsePipeStorage map[string]SsePipe
+
+type SsePipe struct {
+	Reader *io.PipeReader
+	Writer *io.PipeWriter
 }
 
 type Handler func(w *response.Writer, req *request.Request)
@@ -36,10 +45,11 @@ func Serve(port int, handler Handler) (*Server, error) {
 	open.Store(true)
 	server := Server{
 		listener: ln,
-		open: &open,
-		handler: handler,
+		open:     &open,
+		handler:  handler,
+		ssePipes: SsePipeStorage{},
 	}
-	
+
 	server.listen()
 
 	return &server, nil
@@ -60,10 +70,10 @@ func (s *Server) listen() {
 			if err == nil {
 				fmt.Println("Connection Accepted")
 				go s.handle(conn)
-			}else{
+			} else {
 				fmt.Printf("Error accepting connection: %v", err)
 			}
-		}else{
+		} else {
 			break
 		}
 	}
@@ -76,7 +86,7 @@ func (s *Server) handle(conn net.Conn) {
 
 	if err != nil {
 		fmt.Printf("Request Header failde to parse parsed: %q", err)
-		return 
+		return
 	}
 
 	fmt.Println("RequestFromReader done")
