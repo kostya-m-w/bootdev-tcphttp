@@ -98,6 +98,13 @@ func (w *Writer) WriteChunkedBodyDone() (int, error) {
 	return 5, nil
 }
 
+func (w *Writer) WriteSse(p []byte) (int, error) {
+	w.conn.Write(p)
+	w.conn.Write([]byte("\r\n\r\n"))
+
+	return 0, nil
+}
+
 func (w *Writer) WriteTrailers(h headers.Headers) error {
 	for k, v := range h {
 		fmt.Printf("write trailer %v: %s\n", k, v)

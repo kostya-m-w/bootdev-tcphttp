@@ -59,6 +59,34 @@ func handler(w *response.Writer, r *request.Request) {
 			body = bodyHtml("400 Bad Request", "Bad Request", "Your request honestly kinda sucked.")
 			return statusCode, body
 		})
+
+	} else if target == "/sse-client" {
+		html, err := os.ReadFile("./assets/sse-client.html")
+		if err != nil {
+			w.WriteStatusLine(response.StatusInternalServerError)
+			w.WriteHeaders(h)
+			return
+		}
+
+		h.HardSet("content-length", strconv.Itoa(len(html)))
+		w.WriteStatusLine(response.StatusOk)
+		w.WriteHeaders(h)
+		w.WriteBody(html)
+	} else if target == "/sse-stream" {
+		h.Remove("Content-Length")
+		h.HardSet("Content-type", "text/event-stream")
+		h.Set("Cache-Control", "no-cache")
+		h.HardSet("Connection", "keep-alive")
+		w.WriteStatusLine(response.StatusOk)
+		w.WriteHeaders(h)
+
+		i := 0
+		for {
+			st := fmt.Sprintf("data: message %v", i)
+			w.WriteSse([]byte(st))
+			i++
+		}
+
 	} else if target == "/video" {
 		h := response.GetDefaultHeaders(0)
 		h.HardSet("Content-Type", "video/mp4")
