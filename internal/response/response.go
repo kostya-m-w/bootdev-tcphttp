@@ -99,7 +99,7 @@ func (w *Writer) WriteChunkedBodyDone() (int, error) {
 }
 
 func (w *Writer) WriteSse(p []byte) (int, error) {
-	w.conn.Write(p)
+	w.conn.Write([]byte(fmt.Sprintf("data: %q", p)))
 	w.conn.Write([]byte("\r\n\r\n"))
 
 	return 0, nil

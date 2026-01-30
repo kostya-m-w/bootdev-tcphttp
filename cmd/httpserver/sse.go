@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -51,7 +52,7 @@ func sseStream(w *response.Writer, r *request.Request, pipes server.SsePipeStora
 	w.WriteHeaders(h)
 
 	for {
-		line, err := reader.ReadBytes('\n')
+		data, err := reader.ReadBytes('\n')
 
 		if err != nil && errors.Is(err, io.EOF) {
 			return
@@ -61,7 +62,8 @@ func sseStream(w *response.Writer, r *request.Request, pipes server.SsePipeStora
 			fmt.Printf("Error readint sse pipe(%v): %v", connectionId, err)
 			return
 		}
-		w.WriteSse(line)
+		data = bytes.TrimSuffix(data, []byte("\n"))
+		w.WriteSse(data)
 	}
 }
 

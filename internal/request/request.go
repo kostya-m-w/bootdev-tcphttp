@@ -225,5 +225,6 @@ func (r *Request) Target() string {
 }
 
 func (r *Request) QueryParam(key string) (string, bool) {
-	return "", true
+	val, ok := r.RequestLine.Query[key]
+	return val, ok
 }
