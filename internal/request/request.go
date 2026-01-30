@@ -41,7 +41,6 @@ func newRequest() *Request {
 		state:   StateInit,
 		Headers: headers.NewHeaders(),
 		Body:    []byte{},
-		Query:   Query{},
 	}
 }
 
@@ -171,7 +170,7 @@ func (r *Request) BodyDone() bool {
 }
 
 func parseRequestLine(data []byte) (*RequestLine, int, error) {
-	var reqLine RequestLine
+	reqLine := RequestLine{Query: Query{}}
 
 	sepIndex := bytes.Index(data, SEPARATOR)
 
@@ -192,12 +191,35 @@ func parseRequestLine(data []byte) (*RequestLine, int, error) {
 	split_version := strings.Split(parts[2], "/")
 
 	reqLine.Method = parts[0]
-	reqLine.RequestTarget = parts[1]
+
+	path := []byte(parts[1])
+	if paramSep := bytes.Index(path, []byte("?")); paramSep != -1 {
+		reqLine.RequestTarget = string(path[:paramSep])
+		parseQueryParams(path[paramSep+1:], reqLine.Query)
+
+		reqLine.RequestTarget = parts[1]
+	} else {
+		reqLine.RequestTarget = parts[1]
+	}
 	reqLine.HttpVersion = split_version[1]
 
 	return &reqLine, bytesReadCount + 2, nil
 }
 
+func parseQueryParams(data []byte, q Query) {
+	pairs := bytes.Split(data, []byte("&"))
+
+	for _, pair := range pairs {
+		pairSep := bytes.Index(pair, []byte("="))
+		if pairSep < 0 {
+			return
+		}
+		key := string(pair[:pairSep])
+		val := string(pair[pairSep+1:])
+		fmt.Printf("\n\n\n===\n\n%q: %q\n\n===\n\n\n", key, val)
+		q[key] = val
+	}
+}
 func (r *Request) Target() string {
 	return r.RequestLine.RequestTarget
 }

@@ -31,7 +31,7 @@ type SsePipe struct {
 	Writer *io.PipeWriter
 }
 
-type Handler func(w *response.Writer, req *request.Request)
+type Handler func(w *response.Writer, req *request.Request, s SsePipeStorage)
 
 func Serve(port int, handler Handler) (*Server, error) {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
@@ -93,5 +93,5 @@ func (s *Server) handle(conn net.Conn) {
 	responseWriter := response.NewWriter(conn)
 
 	fmt.Println("going to call handler func")
-	s.handler(&responseWriter, request)
+	s.handler(&responseWriter, request, s.ssePipes)
 }

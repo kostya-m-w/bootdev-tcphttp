@@ -45,7 +45,7 @@ func defHandler(w *response.Writer, injected injectedHandler) {
 	w.WriteBody([]byte(body))
 }
 
-func handler(w *response.Writer, r *request.Request) {
+func handler(w *response.Writer, r *request.Request, s server.SsePipeStorage) {
 	var statusCode response.StatusCode
 	var body string
 	h := response.GetDefaultHeaders(0)
@@ -53,6 +53,7 @@ func handler(w *response.Writer, r *request.Request) {
 	h.HardSet("Content-Type", "text/html")
 	fmt.Println("Inside handler func")
 	target := r.Target()
+	fmt.Printf("\n\n\n===\n\n%v\n\n===\n\n\n", target)
 	if target == "/yourproblem" {
 		defHandler(w, func() (response.StatusCode, string) {
 			statusCode = response.StatusBadRequest
@@ -62,8 +63,10 @@ func handler(w *response.Writer, r *request.Request) {
 
 	} else if target == "/sse-client" {
 		sseClient(w, r)
-	} else if target == "/sse-stream" {
-		sseStream(w, r)
+	} else if strings.HasPrefix(target, "/sse-stream") {
+		sseStream(w, r, s)
+	} else if strings.HasPrefix(target, "/sse-stream") {
+		recieveForSse(w, r, s)
 	} else if target == "/video" {
 		h := response.GetDefaultHeaders(0)
 		h.HardSet("Content-Type", "video/mp4")
